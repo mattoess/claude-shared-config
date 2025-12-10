@@ -68,6 +68,7 @@ export CLICKUP_API_TOKEN="your-api-token"
 | `clickup/` | ClickUp integration via MCP server |
 | `github/` | Git/GitHub operations with safety checks |
 | `security/` | OWASP Top 10 security scanning |
+| `sentry/` | Error monitoring and debugging via MCP |
 
 ### Commands
 
@@ -78,6 +79,7 @@ export CLICKUP_API_TOKEN="your-api-token"
 | `/merge` | Safe merge operations |
 | `/security-scan` | Run security checks |
 | `/audit` | Dependency vulnerability audit |
+| `/sentry-debug` | Analyze and debug Sentry errors |
 
 ## Updating
 
@@ -95,19 +97,23 @@ claude-shared-config/
 ├── skills/
 │   ├── clickup/skill.md      # ClickUp MCP integration
 │   ├── github/skill.md       # Git operations
-│   └── security/             # Security skills
-│       ├── skill.md          # Main security coordinator
-│       ├── owasp-injection.md
-│       ├── owasp-auth.md
-│       └── owasp-access-control.md
+│   ├── security/             # Security skills
+│   │   ├── skill.md          # Main security coordinator
+│   │   ├── owasp-injection.md
+│   │   ├── owasp-auth.md
+│   │   └── owasp-access-control.md
+│   └── sentry/skill.md       # Sentry MCP integration
 ├── commands/
 │   ├── ticket.md
 │   ├── commit.md
 │   ├── merge.md
 │   ├── security-scan.md
-│   └── audit.md
+│   ├── audit.md
+│   └── sentry-debug.md
 ├── mcp/
-│   └── clickup.template.json
+│   ├── README.md             # MCP setup guide
+│   ├── clickup.template.json
+│   └── sentry.template.json
 ├── templates/
 │   ├── clickup.json.template
 │   └── CLAUDE.md.template
