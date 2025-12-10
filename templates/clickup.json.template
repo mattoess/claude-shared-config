@@ -1,0 +1,30 @@
+{
+  "workspace_id": "YOUR_WORKSPACE_ID",
+  "space_id": "YOUR_SPACE_ID",
+  "space_name": "Your Space Name",
+  "default_list_id": "YOUR_DEFAULT_LIST_ID",
+  "default_list_name": "Current Sprint",
+  "branch_base": "main",
+  "lists": {
+    "current_sprint": "LIST_ID",
+    "product_backlog": "LIST_ID",
+    "bug_tracking": "LIST_ID"
+  },
+  "statuses": {
+    "todo": "to do",
+    "in_progress": "in progress",
+    "review": "code review",
+    "done": "done"
+  },
+  "default_assignee": "me",
+  "branch_naming": {
+    "pattern": "CU-{task_id}_{description}_{developer_name}",
+    "developer_name": "Your-Name",
+    "example": "CU-86b7bbrtq_feature-name_Your-Name"
+  },
+  "commit_format": {
+    "pattern": "{type}({scope}): {description} [{ticket-id}]",
+    "types": ["feat", "fix", "docs", "style", "refactor", "test", "chore", "perf"],
+    "example": "feat(auth): Add OAuth2 login flow [CU-86b7bbrtq]"
+  }
+}

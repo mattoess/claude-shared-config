@@ -1,0 +1,78 @@
+# Project: {PROJECT_NAME}
+
+## Overview
+{Brief description of the project}
+
+## Tech Stack
+- {Framework/Library}
+- {Database}
+- {Other key technologies}
+
+## Project Structure
+```
+src/
+├── api/          # API routes
+├── components/   # UI components
+├── services/     # Business logic
+├── utils/        # Utilities
+└── types/        # TypeScript types
+```
+
+## Development Workflow
+
+### Starting Work on a Ticket
+```
+/ticket {ticket-id}
+```
+
+### Committing Changes
+```
+/commit
+```
+
+### Merging to Main
+```
+/merge to main
+```
+
+## Configuration
+
+### ClickUp Integration
+- Workspace: {WORKSPACE_NAME}
+- Space: {SPACE_NAME}
+- See `clickup.json` for full configuration
+
+### Branch Naming
+```
+CU-{task_id}_{description}_{developer_name}
+```
+
+### Commit Format
+```
+{type}({scope}): {description} [{ticket-id}]
+```
+
+## Security
+
+Run security scan before PRs:
+```
+/security-scan
+```
+
+Run dependency audit:
+```
+/audit
+```
+
+## Testing
+
+{Project-specific testing instructions}
+
+## Deployment
+
+{Project-specific deployment instructions}
+
+## Important Notes
+
+- {Note 1}
+- {Note 2}
