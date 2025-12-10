@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "make": {
+      "type": "http",
+      "url": "https://us1.make.com/mcp",
+      "headers": {
+        "Authorization": "Bearer YOUR_MCP_TOKEN_HERE"
+      }
+    }
+  }
+}

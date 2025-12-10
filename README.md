@@ -67,6 +67,7 @@ export CLICKUP_API_TOKEN="your-api-token"
 |-------|-------------|
 | `clickup/` | ClickUp integration via MCP server |
 | `github/` | Git/GitHub operations with safety checks |
+| `make/` | Make.com automation scenarios via MCP |
 | `security/` | OWASP Top 10 security scanning |
 | `sentry/` | Error monitoring and debugging via MCP |
 
@@ -80,6 +81,7 @@ export CLICKUP_API_TOKEN="your-api-token"
 | `/security-scan` | Run security checks |
 | `/audit` | Dependency vulnerability audit |
 | `/sentry-debug` | Analyze and debug Sentry errors |
+| `/make-scenarios` | List, analyze, or run Make.com scenarios |
 
 ## Updating
 
@@ -102,18 +104,21 @@ claude-shared-config/
 │   │   ├── owasp-injection.md
 │   │   ├── owasp-auth.md
 │   │   └── owasp-access-control.md
-│   └── sentry/skill.md       # Sentry MCP integration
+│   ├── sentry/skill.md       # Sentry MCP integration
+│   └── make/skill.md         # Make.com MCP integration
 ├── commands/
 │   ├── ticket.md
 │   ├── commit.md
 │   ├── merge.md
 │   ├── security-scan.md
 │   ├── audit.md
-│   └── sentry-debug.md
+│   ├── sentry-debug.md
+│   └── make-scenarios.md
 ├── mcp/
 │   ├── README.md             # MCP setup guide
 │   ├── clickup.template.json
-│   └── sentry.template.json
+│   ├── sentry.template.json
+│   └── make.template.json
 ├── templates/
 │   ├── clickup.json.template
 │   └── CLAUDE.md.template
