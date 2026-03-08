@@ -23,8 +23,9 @@ Create a git commit following Conventional Commits specification with ClickUp ta
 **Ask**: "Stage all changes, or specific files?"
 
 **If all:**
+List the files and stage them by name (never use `git add .` or `git add -A` to avoid accidentally staging secrets, large binaries, or unrelated files):
 ```bash
-git add .
+git add file1.ts file2.js ...
 ```
 
 **If specific:**
@@ -40,7 +41,8 @@ git diff --staged
 
 ### Step 3: Generate Commit Message
 
-1. **Analyze Changes**
+1. **Analyze Staged Changes**
+   - Use `git diff --staged` (not the earlier unstaged diff) to analyze what will actually be committed
    - Determine commit type (feat, fix, docs, etc.)
    - Identify scope (e.g., auth, api, ui)
    - Summarize changes concisely
@@ -50,10 +52,13 @@ git diff --staged
    - Parse ticket ID from branch name pattern: `CU-{task_id}_{description}_{developer_name}`
 
 3. **Construct Message**
+   Write a detailed commit message — not just a terse one-liner. The body should explain what changed and why, giving enough context for someone reading the git log to understand the intent.
    ```
    {type}({scope}): {description} [{ticket-id}]
 
-   {bullet points of main changes}
+   {paragraph or bullet points explaining what changed and why}
+
+   Co-Authored-By: Claude <noreply@anthropic.com>
    ```
 
 4. **Show Proposed Message**
@@ -62,9 +67,15 @@ git diff --staged
 
    feat(salesforce): Add OAuth2 login flow [CU-86b7bbrtq]
 
-   - Implemented OAuth2 provider integration
-   - Added JWT token management
-   - Added user session persistence
+   Enable Salesforce users to authenticate via OAuth2 instead of
+   manual token entry, improving security and UX for the CRM
+   integration.
+
+   - Add OAuth2 provider with PKCE flow and JWT token management
+   - Store encrypted refresh tokens in Airtable for session persistence
+   - Add token refresh middleware to handle expiry transparently
+
+   Co-Authored-By: Claude <noreply@anthropic.com>
 
    Approve? (yes/no/edit)
    ```
@@ -121,16 +132,29 @@ Next steps:
 ```
 feat(salesforce): Add OAuth2 login flow [CU-86b7bbrtq]
 
-Implemented OAuth2 provider integration with JWT tokens.
-Users can now log in with Salesforce credentials.
+Enable Salesforce users to authenticate via OAuth2 instead of
+manual token entry, improving security and UX for the CRM
+integration.
+
+- Add OAuth2 provider with PKCE flow and JWT token management
+- Store encrypted refresh tokens in Airtable for session persistence
+- Add token refresh middleware to handle expiry transparently
+
+Co-Authored-By: Claude <noreply@anthropic.com>
 ```
 
 **Bug Fix:**
 ```
 fix(api): Resolve timeout in org switch [CU-abc123xyz]
 
-Increased timeout from 5s to 30s for org context switching.
-Added retry logic with exponential backoff.
+Org context switching was failing for users with many connected
+accounts because the 5s default timeout wasn't enough for the
+cascading Clerk + Airtable lookups.
+
+- Increase timeout from 5s to 30s for org context switching
+- Add retry logic with exponential backoff (3 attempts)
+
+Co-Authored-By: Claude <noreply@anthropic.com>
 ```
 
 ---
