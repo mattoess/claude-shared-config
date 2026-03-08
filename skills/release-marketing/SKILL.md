@@ -10,6 +10,8 @@ argument-hint: [blog|landing-page|social|changelog|all]
 
 You generate professional marketing content based on what was actually shipped in the product. Your output is always grounded in real code changes — never fabricated features.
 
+All drafting and iteration happens here in the conversation. ClickUp is only used at the end as a publishing queue.
+
 ## Context: What Just Shipped
 
 Gather the raw material first. Run these to understand what changed:
@@ -29,6 +31,42 @@ Gather the raw material first. Run these to understand what changed:
 !git branch --show-current
 ```
 
+## Step 0: Check Campaign Pipeline
+
+Before creating anything, check what's already planned or in-flight so you don't duplicate efforts.
+
+Read the ClickUp campaign list and the project's `clickup.json` for credentials:
+
+```bash
+# Get ClickUp config
+cat clickup.json
+```
+
+Then fetch the RGA Campaign list (ID: 901409083855):
+
+```bash
+curl -s -X GET "https://api.clickup.com/api/v2/list/901409083855/task" \
+  -H "Authorization: $CLICKUP_API_KEY" | python3 -c "
+import json, sys
+d = json.load(sys.stdin)
+for t in d.get('tasks', []):
+    status = t['status']['status']
+    name = t['name']
+    tags = ', '.join(tag['name'] for tag in t.get('tags', []))
+    tag_str = f' [{tags}]' if tags else ''
+    print(f'  {status:15s} | {name}{tag_str}')
+"
+```
+
+The CLICKUP_API_KEY is stored in the project's `.env` file as `CLICKUP_API_KEY`.
+
+Present a brief summary:
+- **In progress / planned**: What's actively being worked on
+- **Recent done**: What was recently published (avoid overlap)
+- **Gaps**: Content types or topics not yet covered for this release
+
+Then proceed to analysis.
+
 ## Step 1: Analyze Changes
 
 Before generating ANY content, thoroughly understand what shipped:
@@ -43,27 +81,51 @@ Before generating ANY content, thoroughly understand what shipped:
    - **Infrastructure** (deployment, monitoring, reliability)
 4. **Read the actual component files** that changed to understand the user experience — don't just summarize commit messages
 
-Present the analysis to the user and confirm before generating content.
+## Step 2: Present the Content Plan
 
-## Step 2: Determine Content Type
+This is the key decision point. Present a structured plan BEFORE writing anything:
 
-Based on the `$ARGUMENTS` (or ask if not specified):
+### Content Plan Format
 
-| Argument | Output |
-|----------|--------|
-| `blog` | SEO-optimized blog post (HTML, matching existing page patterns) |
-| `landing-page` | Industry or feature landing page (HTML) |
-| `social` | LinkedIn post + Twitter/X thread + email snippet |
-| `changelog` | User-facing changelog entry |
-| `all` | All of the above |
+```
+## Release Marketing Plan
 
-If no argument, ask: "What content do you need? (blog / landing-page / social / changelog / all)"
+### What shipped
+- [1-3 sentence summary of the release]
 
-## Step 3: Generate Content
+### Campaign context
+- [What's already in the ClickUp pipeline that relates]
+- [Any gaps this content would fill]
+
+### Proposed content
+
+1. **[Content type]: "[Working title]"**
+   - Angle: [What problem/story this leads with]
+   - Audience: [Sales leaders / AEs / Consultants / SDR agencies]
+   - Key points: [2-3 bullets]
+
+2. **[Content type]: "[Working title]"**
+   - ...
+
+### What I'd skip
+- [Any content types that don't make sense for this release and why]
+```
+
+**Wait for the user to approve, adjust, or redirect before proceeding.**
+
+The user may say:
+- "Just do #1 and #2" → Generate only those
+- "Make #1 more about the discovery angle" → Adjust and re-present
+- "Skip the blog, just social" → Pivot
+- "Looks good, go" → Generate all proposed content
+
+## Step 3: Generate Drafts
+
+Generate the approved content types. Present each draft **inline in the conversation** for review — do NOT write files yet.
 
 ### Brand Voice & Tone
 
-Read the existing marketing pages in `public/` to match the established voice. Key principles:
+Read the brand guide at `skills/release-marketing/brand-guide.md` and existing marketing pages in `public/` to match the established voice. Key principles:
 
 - **Confident but not arrogant** — "finally delivers" not "the best ever"
 - **Problem-first framing** — Lead with the pain point, then the solution
@@ -85,7 +147,7 @@ Read the existing marketing pages in `public/` to match the established voice. K
 
 ### For Blog Posts (HTML)
 
-Read an existing blog page (e.g., `public/how-ai-sales-transformation-finally-works-for-b2b-teams.html`) and match:
+Read the HTML template at `skills/release-marketing/templates/html-page.md` and an existing blog page (e.g., `public/how-ai-sales-transformation-finally-works-for-b2b-teams.html`) to match:
 - Full HTML document with `<!DOCTYPE html>`
 - Enhanced meta tags (title, description, canonical URL)
 - Open Graph tags (og:type, og:title, og:description, og:url, og:site_name, og:image)
@@ -116,6 +178,8 @@ Same HTML structure as blog posts, plus:
 
 ### For Social Media
 
+Read the social templates at `skills/release-marketing/templates/social-media.md` for format guidance.
+
 **LinkedIn post format:**
 - Hook line (pattern interrupt or bold claim)
 - 3-5 short paragraphs with line breaks
@@ -143,9 +207,22 @@ Same HTML structure as blog posts, plus:
 - User-facing language (not technical jargon)
 - Link to relevant docs or pages where applicable
 
-## Step 4: File Output
+## Step 4: Iterate
 
-Write generated content to appropriate locations:
+After presenting each draft, ask: **"How does this look? Want me to adjust anything?"**
+
+Common iteration patterns:
+- "Make it punchier" → Tighten language, stronger hook
+- "Too technical" → Shift to business outcomes
+- "Add the MEDDIC angle" → Weave in methodology reference
+- "Shorter" → Cut to essentials
+- "Combine these two" → Merge drafts
+
+Keep iterating until the user says they're happy. Only then move to Step 5.
+
+## Step 5: Save Files
+
+Once drafts are approved, write them to the project:
 
 | Type | Output Path |
 |------|-------------|
@@ -154,11 +231,55 @@ Write generated content to appropriate locations:
 | Social media | `docs/marketing/{date}-social.md` |
 | Changelog | `docs/marketing/{date}-changelog.md` |
 
-After writing, remind the user to:
-1. Review the content for accuracy
-2. Update the sitemap if adding new pages
-3. Add any new pages to the nav header/footer if needed
-4. Test locally before deploying
+## Step 6: Create ClickUp Tasks
+
+After files are saved, ask: **"Want me to add these to your RGA Campaign list in ClickUp?"**
+
+If yes, create tasks in the RGA Campaign list (ID: 901409083855) using the ClickUp API:
+
+```bash
+curl -s -X POST "https://api.clickup.com/api/v2/list/901409083855/task" \
+  -H "Authorization: $CLICKUP_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "[Content type]: [Title]",
+    "description": "[Full approved copy goes here]",
+    "status": "planned",
+    "tags": ["[content-type]", "[topic-tags]"]
+  }'
+```
+
+**Task naming convention** (match existing patterns in the list):
+- `LinkedIn: [Topic or Hook]`
+- `Blog Post: [Title]`
+- `Email [N]: [Subject Line] - [Date]`
+- `Landing Page: [Page Title]`
+- `Newsletter Issue #[N]: [Title]`
+
+**Tags to use** (match existing tags): `linkedin`, `blog`, `email`, `landing-page`, `crm integration`, `hubspot`, `salesforce`, etc.
+
+**Status**: Always create as `planned` — the user moves to `in progress` when they're ready to publish.
+
+**Description**: Include the full approved copy so it's ready to copy-paste into the publishing tool (GHL Social, email platform, etc.).
+
+After creating tasks, show a summary:
+```
+## Added to RGA Campaign
+
+✓ LinkedIn: [Title] → planned
+✓ Blog Post: [Title] → planned
+✓ Email 1: [Subject] → planned
+
+View list: https://app.clickup.com/9010149796/v/li/901409083855
+```
+
+## Step 7: Wrap Up
+
+Remind the user of any remaining steps:
+- Review and publish from ClickUp when ready
+- For HTML pages: update sitemap, add to nav/footer if needed, test locally
+- For social: schedule in GHL Social Media Posting
+- For email: set up in email platform with proper send dates
 
 ## Important Rules
 
@@ -166,5 +287,7 @@ After writing, remind the user to:
 - **NEVER invent metrics** — use real numbers from the codebase or say "improved" without specifics
 - **ALWAYS read the actual changed files** before describing a feature
 - **ALWAYS match the existing HTML template pattern** — read a reference page first
-- **ASK before writing** — present the content plan and get approval before generating files
+- **ALWAYS present the plan and get approval** before generating drafts
+- **ALWAYS show drafts inline** before writing files — iterate in conversation
+- **ALWAYS ask before creating ClickUp tasks** — never auto-create
 - **Ground claims in code** — if you say "real-time discovery coaching," confirm the feature exists
