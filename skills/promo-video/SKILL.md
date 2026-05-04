@@ -239,10 +239,11 @@ Build `captions.linkedin` and `captions.instagram` per the schema:
 
 - **LinkedIn:** `hook` (≤150 char, what's visible before "see more"),
   `body` (2-4 short paragraphs, total post 600-1300 char range),
-  `hashtags` (3-5, no `#` prefix), `cta` (one line, default
-  "DM me for a demo.").
+  `hashtags` (**2-3 max**, PascalCase, no `#` prefix), `cta` (one line,
+  default "DM me for a demo.").
 - **Instagram:** `caption` (≤200 char before hashtags, first line
-  hooks), `hashtags` (5-10, lowercase).
+  hooks), `hashtags` (**5-7**, lowercase, no separator dots before
+  the trailing block).
 
 ### Present
 
@@ -420,6 +421,13 @@ NEXT STEPS:
 - **No rhetorical questions as the LinkedIn hook.** Make a claim.
 - **Active voice, no passive constructions.**
 - **Match the script's tone.** Don't pivot to LinkedIn-thinkfluencer voice.
+- **No markdown emphasis** (`*italics*` / `**bold**`) in LinkedIn
+  captions. LinkedIn does not render markdown; the asterisks display
+  literally and read as an AI/copy-paste tell.
+- **Hashtag counts are HARD limits.** LinkedIn: 2-3. Instagram: 5-7.
+  More hashtags do not help in 2026.
+- **No `.\n.\n.\n` separator dots** before Instagram hashtag blocks.
+  Single blank line only.
 
 If a caption sentence sounds like every other AI-tool LinkedIn post,
 rewrite it. The whole point of these captions is they don't read as

@@ -69,25 +69,37 @@ copy-paste).
 }
 ```
 
-### LinkedIn rules
+### LinkedIn rules (2026 policy)
 
 - `hook`: first 1 to 2 lines. This is what's visible before "see more"
   truncates. Roughly ≤ 150 characters. The whole post lives or dies on this.
 - `body`: 2 to 4 short paragraphs. Line breaks between them. Total post
   including hook + body should land in the 600 to 1300 character range.
   Longer is OK if the story warrants.
-- `hashtags`: 3 to 5. PascalCase or single-word lower. No `#` prefix in
-  the array; the skill adds it when concatenating.
-- `cta`: one line. Default `"DM me for a demo."` — don't restate the brand,
+- `hashtags`: **2 to 3 max.** LinkedIn has been downranking hashtag-heavy
+  posts since 2024. The 5-tag block is dated. Use the 2-3 tags that
+  actually describe the post. PascalCase preferred. No `#` prefix in the
+  array; the skill adds it when concatenating.
+- `cta`: one line. Default `"DM me for a demo."` Don't restate the brand,
   don't link out (LinkedIn deprioritizes posts with outbound links).
+- **No markdown emphasis** (`*italics*` or `**bold**`). LinkedIn does not
+  render markdown; the asterisks display literally. If you want emphasis,
+  use ALL CAPS for one word or restructure the sentence.
 
-### Instagram rules
+### Instagram rules (2026 policy)
 
 - `caption`: short. Single block or 2 short paragraphs. Aim ≤ 200
   characters before the hashtag block. The first line must hook because
   Instagram truncates aggressively in feed (~80 chars).
-- `hashtags`: 5 to 10. Lowercase, single-word or compact compounds. The
-  skill renders these as a trailing block separated by a blank line.
+- `hashtags`: **5 to 7.** The Instagram algorithm shifted heavily toward
+  caption keywords + watch-time signals; mass hashtags add little. Pick
+  7 tags that describe the content rather than 30 that ladder up to
+  whatever's trending. Lowercase, single-word or compact compounds.
+- **No first-comment hashtag trick.** The "hide hashtags in a comment"
+  pattern fell out of favor; in-caption is current best practice.
+- **No `.\n.\n.\n` separator dots before the hashtag block.** That
+  pattern reads as an AI/social-tool tell now. Just a single blank line
+  between caption and tags.
 
 ### Concatenation (what gets written to Airtable's caption fields)
 
@@ -104,7 +116,8 @@ pre-formatted post:
 #{hashtag1} #{hashtag2} #{hashtag3}
 ```
 
-**`Instagram Caption` field** is:
+**`Instagram Caption` field** is (single blank line between caption and
+tags, no separator dots):
 
 ```
 {caption}
