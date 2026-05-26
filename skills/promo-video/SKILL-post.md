@@ -214,10 +214,24 @@ mcp__ghl__social-media-posting_create-post(
   body_summary    = "<exact caption text for these accounts>",
   body_status     = "draft",          // see mode mapping below
   body_scheduleDate = "<ISO-8601>",   // ONLY when scheduled, else omit
-  body_media      = [{ "url": "<Output MP4 URL>" }],
-  body_userId     = "<GHL user id if known, else omit>"
+  body_media      = [{ "url": "<Output MP4 URL>", "type": "video" }],
+  body_userId     = "<oauthId of the posting account>"
 )
 ```
+
+**`body_userId` is REQUIRED** (the MCP schema marks it optional, but the
+API returns HTTP 422 `userId should not be empty` without it). Use the
+**`oauthId`** field from the posting account in the `get-account`
+results; the created post's `createdBy` comes back matching it. The
+LinkedIn Matt Oess profile and the RGA company page share the same
+oauthId (`67ddd7fe838e587a959cab49`, one LinkedIn OAuth connection), so a
+single call covering both LinkedIn targets passes that one oauthId as
+`userId`. If a single call's accountIds span different oauthIds, split
+into one call per oauthId.
+
+**`body_media`**: each entry needs both `url` and `type` (e.g.
+`"video"`). The URL must be publicly reachable; the rendered promo at the
+brief's `Output MP4 URL` (Vercel Blob public URL) works.
 
 Never mix two platforms' captions in one call. LinkedIn and Instagram
 captions differ, so they are always separate calls even though both are
