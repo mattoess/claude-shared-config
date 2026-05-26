@@ -153,47 +153,75 @@ social accounts for the location. The response contains accounts with an
 `id` (the `accountId`) and a `platform`/`type` (e.g. `linkedin`,
 `instagram`, `facebook`).
 
-Build a platform → accountId map. For each platform you're posting to
-(from Step 3):
+### Standing account selection (RGA default)
 
-- Match the brief's platform name to the account's platform,
-  case-insensitively (`LinkedIn` → `linkedin`).
-- If a platform has **no** connected account, halt and tell the user:
-  "No connected <platform> account in GHL. Connect it in Social Planner
-  settings, or remove it from `Posted To`."
-- If a platform has **more than one** connected account, list them and
-  ask the user which one. Do not guess. **Defaults for brand promos**
-  (state the default, still let the user override):
-  - **LinkedIn:** prefer the **Revenue Growth Agent company *page***
-    (`type: page`, name "Revenue Growth Agent") over any personal
-    profile. A brand promo belongs on the brand page.
-  - **Instagram:** there is no RGA-branded IG account today (only
-    personal handles like `mattoess` / `justeenoess`), so there is no
-    safe default. Always ask which handle.
-  - Skip `community`, `youtube`, and group channels unless the user
-    explicitly asks to post there.
+Unless the user says otherwise on the run, post to these specific
+accounts. Match them by **name + platform** in the `get-account` results
+(account IDs can change when an account is re-authed, so match by name
+and read the current `id` from the response):
+
+| Platform  | Account name           | Type    | Reference accountId (verify against get-account) |
+|-----------|------------------------|---------|---------------------------------------------------|
+| LinkedIn  | Matt Oess              | profile | `67ddd7fe838e587a959cab49_zTPFln9s8sc8hUWqgr4q_aW9gpZq5aK_profile` |
+| LinkedIn  | Revenue Growth Agent   | page    | `67ddd7fe838e587a959cab49_zTPFln9s8sc8hUWqgr4q_107978108_page` |
+| Instagram | mattoess               | profile | `67ddd7ba031a9629acb54252_zTPFln9s8sc8hUWqgr4q_17841402062630118` |
+
+So **LinkedIn posts to BOTH** the Matt Oess profile and the Revenue
+Growth Agent page; **Instagram posts to mattoess only**. (The LinkedIn
+caption is the same text for both LinkedIn targets.)
+
+Rules:
+- Match each target by name (case-insensitive) and platform. If a named
+  account is **missing** from `get-account`, halt and tell the user which
+  one is gone (likely needs re-connecting in Social Planner).
+- If `get-account` shows a name collision or an unexpected duplicate,
+  list them and ask. Don't guess.
+- Skip `community`, `youtube`, and group channels unless the user
+  explicitly asks to post there.
+- The user can override per-run ("just the RGA page", "skip Instagram",
+  etc.). Honor the override.
 
 Surface the resolved account names in the Step 6 preview ("Accounts:"
 line) so the user confirms they're posting to the right handles.
 
-### Step 7b: Create one draft per platform
+### Step 7b: Create drafts, grouped by caption
 
-On approval (Step 6 y/n), call `create-post` **once per platform**. GHL's
-`create-post` accepts an array of `accountIds`, but caption text differs
-per platform (LinkedIn vs Instagram), so post separately to keep each
-platform's exact caption.
+On approval (Step 6 y/n), call `create-post` **once per distinct
+caption**, passing all accountIds that share that caption in one call.
+GHL's `create-post` takes an array of `accountIds`, so accounts on the
+same platform that use the same caption go in a single call.
+
+With the standing RGA selection that means **two** calls:
+
+1. **LinkedIn** — both the Matt Oess profile and the Revenue Growth Agent
+   page (same `LinkedIn Caption` text):
+   ```
+   body_accountIds = ["<Matt Oess LinkedIn id>", "<RGA page LinkedIn id>"]
+   body_summary    = "<exact LinkedIn Caption text>"
+   ```
+2. **Instagram** — mattoess only (`Instagram Caption` text):
+   ```
+   body_accountIds = ["<mattoess IG id>"]
+   body_summary    = "<exact Instagram Caption text>"
+   ```
+
+Full call shape:
 
 ```
 mcp__ghl__social-media-posting_create-post(
-  body_accountIds = ["<accountId for this platform>"],
+  body_accountIds = [ ...ids sharing this caption... ],
   body_type       = "post",
-  body_summary    = "<exact caption text for THIS platform>",
+  body_summary    = "<exact caption text for these accounts>",
   body_status     = "draft",          // see mode mapping below
   body_scheduleDate = "<ISO-8601>",   // ONLY when scheduled, else omit
   body_media      = [{ "url": "<Output MP4 URL>" }],
   body_userId     = "<GHL user id if known, else omit>"
 )
 ```
+
+Never mix two platforms' captions in one call. LinkedIn and Instagram
+captions differ, so they are always separate calls even though both are
+"post" type.
 
 Field mapping:
 - **`body_summary`**: the platform's exact caption from Airtable
