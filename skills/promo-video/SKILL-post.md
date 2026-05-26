@@ -9,8 +9,15 @@ to GoHighLevel's Social Planner as drafts (or pre-scheduled drafts if a
 publish date is set). The user then polishes inside GHL — line breaks,
 person tags, polls, video preview — and clicks publish.
 
-The actual GHL API call is handled by a Make.com scenario. This skill
-validates the brief, formats the payload, and fires the webhook.
+The GHL Social Planner draft is created **directly via the GoHighLevel
+MCP** (`mcp__ghl__social-media-posting_create-post`). No Make.com webhook
+is involved. This skill validates the brief, lints the captions, shows a
+preview, and on approval calls the GHL MCP once per platform.
+
+> Prerequisite: the GoHighLevel MCP server must be connected in this
+> session. If `mcp__ghl__*` tools are unavailable, halt and tell the user
+> to enable the GHL MCP. (The MCP is location-scoped to the RGA GHL
+> location; you do not pass a location id.)
 
 ## Working directory
 
@@ -20,12 +27,12 @@ You can run this from either repo:
 
 The skill is the same. Don't worry about which repo.
 
-## Airtable + Make constants
+## Constants
 
 - Base: `app8WmO2rF14Bfv8O` (RGA Promo Pipeline)
 - Promo Briefs table: `tblrFA4SLyRcbQ965`
-- Make webhook: read from `MAKE_GHL_PROMO_WEBHOOK` env var. If unset,
-  halt and tell the user to add it to `.env`.
+- Posting transport: GoHighLevel MCP (`mcp__ghl__social-media-posting_*`),
+  location-scoped to the RGA GHL location. No env var or webhook needed.
 
 ## Step 1: Resolve the Brief
 
@@ -118,7 +125,7 @@ Show the user EXACTLY what will be sent, per platform. No JSON. Format:
 **Mode:** Draft  (or: Scheduled draft for May 5, 2026 at 2:00 PM ET)
 **Brief:** Meeting Prepper V2.0 — relaunch, whole-picture angle
 **Video:** [Drive link]
-**Location:** RGA TechCXO (configured in Make scenario)
+**Accounts:** LinkedIn (RGA), Instagram (RGA)  (resolved from GHL in Step 7a)
 
 ---
 
@@ -137,64 +144,86 @@ Then ask: "Send these to GHL? (y/n)"
 
 If no, stay in chat for further edits to Airtable before re-running.
 
-## Step 7: Fire the Make Webhook
+## Step 7: Create the Drafts via GHL MCP
 
-On approval, POST to the Make webhook with this exact payload shape:
+### Step 7a: Resolve social accounts (do this BEFORE the Step 6 preview)
 
-```json
-{
-  "brief_id": "recerNJCKtxgjDGbY",
-  "brief_name": "Meeting Prepper V2.0 — relaunch, whole-picture angle",
-  "mode": "draft",
-  "scheduled_at": null,
-  "video_drive_url": "https://drive.google.com/file/d/.../view?usp=drivesdk",
-  "video_drive_id": "1mmeyB3QncOfD-TryWT-pWAGew1f5HnE1",
-  "platforms": ["LinkedIn", "Instagram"],
-  "captions": {
-    "LinkedIn": "<exact LinkedIn Caption text>",
-    "Instagram": "<exact Instagram Caption text>"
-  },
-  "airtable_record_url": "https://airtable.com/app8WmO2rF14Bfv8O/tblrFA4SLyRcbQ965/recerNJCKtxgjDGbY"
-}
+Call `mcp__ghl__social-media-posting_get-account` to list the connected
+social accounts for the location. The response contains accounts with an
+`id` (the `accountId`) and a `platform`/`type` (e.g. `linkedin`,
+`instagram`, `facebook`).
+
+Build a platform → accountId map. For each platform you're posting to
+(from Step 3):
+
+- Match the brief's platform name to the account's platform,
+  case-insensitively (`LinkedIn` → `linkedin`).
+- If a platform has **no** connected account, halt and tell the user:
+  "No connected <platform> account in GHL. Connect it in Social Planner
+  settings, or remove it from `Posted To`."
+- If a platform has **more than one** connected account, list them and
+  ask the user which one. Do not guess. **Defaults for brand promos**
+  (state the default, still let the user override):
+  - **LinkedIn:** prefer the **Revenue Growth Agent company *page***
+    (`type: page`, name "Revenue Growth Agent") over any personal
+    profile. A brand promo belongs on the brand page.
+  - **Instagram:** there is no RGA-branded IG account today (only
+    personal handles like `mattoess` / `justeenoess`), so there is no
+    safe default. Always ask which handle.
+  - Skip `community`, `youtube`, and group channels unless the user
+    explicitly asks to post there.
+
+Surface the resolved account names in the Step 6 preview ("Accounts:"
+line) so the user confirms they're posting to the right handles.
+
+### Step 7b: Create one draft per platform
+
+On approval (Step 6 y/n), call `create-post` **once per platform**. GHL's
+`create-post` accepts an array of `accountIds`, but caption text differs
+per platform (LinkedIn vs Instagram), so post separately to keep each
+platform's exact caption.
+
+```
+mcp__ghl__social-media-posting_create-post(
+  body_accountIds = ["<accountId for this platform>"],
+  body_type       = "post",
+  body_summary    = "<exact caption text for THIS platform>",
+  body_status     = "draft",          // see mode mapping below
+  body_scheduleDate = "<ISO-8601>",   // ONLY when scheduled, else omit
+  body_media      = [{ "url": "<Output MP4 URL>" }],
+  body_userId     = "<GHL user id if known, else omit>"
+)
 ```
 
-Notes on the payload:
-- `mode`: `"draft"` or `"scheduled-draft"`.
-- `scheduled_at`: ISO-8601 timestamp with timezone if mode is
-  `scheduled-draft`, otherwise `null`.
-- `video_drive_id`: extracted from the Drive URL (between `/d/` and
-  `/view`). Make uses this to fetch the file from Drive directly.
-- `platforms`: the validated list from Step 3.
-- `captions`: keyed by platform name; only includes platforms in
-  `platforms`.
+Field mapping:
+- **`body_summary`**: the platform's exact caption from Airtable
+  (`LinkedIn Caption` or `Instagram Caption`). Do not merge or alter.
+- **`body_status`**:
+  - mode `draft` → `"draft"` (omit `body_scheduleDate`).
+  - mode `scheduled-draft` → `"scheduled"` and set `body_scheduleDate`
+    to the ISO-8601 timestamp with timezone from Step 4. (GHL holds it
+    as a scheduled post the user can still edit before it fires.)
+- **`body_media`**: a single-element array referencing the rendered
+  video at the brief's `Output MP4 URL`. (GHL fetches the media from the
+  URL; the Vercel Blob / Drive URL must be publicly reachable.)
+- **`body_type`**: `"post"` unless the brief explicitly calls for a
+  `reel` or `story`.
 
-Use:
+Call it once per platform, collecting each response. Each successful
+response returns the created post with an `id` and `status`.
 
-```bash
-curl -X POST -H "Content-Type: application/json" \
-  -d '<payload>' \
-  "$MAKE_GHL_PROMO_WEBHOOK"
-```
+### Step 7c: Handle failures
 
-The Make scenario should respond synchronously with a JSON body
-containing per-platform draft URLs:
-
-```json
-{
-  "ok": true,
-  "drafts": {
-    "LinkedIn": "https://app.gohighlevel.com/.../social-planner/posts/<id>",
-    "Instagram": "https://app.gohighlevel.com/.../social-planner/posts/<id>"
-  }
-}
-```
-
-If the response is an error or the webhook times out (>30s), halt and
-tell the user. Don't update Airtable.
+- If any platform's `create-post` call errors, halt immediately. Report
+  which platforms succeeded and which failed. Do NOT mark Airtable as
+  `posted-as-drafts` unless **all** requested platforms succeeded — a
+  partial post would otherwise be silently lost on the next run.
+- If the media URL is rejected (not publicly reachable), tell the user
+  the `Output MP4 URL` must be public and halt.
 
 ## Step 8: Update Airtable
 
-On webhook success:
+On success (all requested platforms posted in Step 7):
 
 ```
 mcp__airtable__update_records(
@@ -224,13 +253,16 @@ Brief: <Airtable record URL>
 Status: posted-as-drafts
 Mode: <draft | scheduled draft for <date>>
 
-DRAFT LINKS:
-- LinkedIn:  <draft URL from webhook response>
-- Instagram: <draft URL from webhook response>
+DRAFTS CREATED (open in GHL Social Planner):
+- LinkedIn:  post id <id from create-post response>
+- Instagram: post id <id from create-post response>
+
+(GHL's create-post returns a post id, not a deep link. Find the drafts
+in Social Planner → Drafts, newest first.)
 
 NEXT STEPS:
 
-1. Open each draft in GHL.
+1. Open each draft in GHL Social Planner.
 2. Polish:
    - Check line breaks, spacing, video preview.
    - Add @-mentions, polls, or links if needed.
@@ -245,15 +277,17 @@ in GHL.)
 
 ## Important Rules
 
-- NEVER fire the webhook without explicit user approval (Step 6 y/n).
+- NEVER call `create-post` without explicit user approval (Step 6 y/n).
+- ALWAYS create as a **draft** (or scheduled draft). NEVER post with
+  `status: published` from this skill. The user publishes in GHL.
 - NEVER skip the caption lint (Step 5). The whole point of this pipeline
   is shipping captions that don't read as AI-generated; the lint is the
   last gate.
 - NEVER auto-correct captions silently. Show the user the issues and
   let them decide.
-- ALWAYS update Airtable after a successful webhook (so the brief
-  shows `posted-as-drafts` and you don't accidentally double-send).
+- ALWAYS update Airtable after ALL requested platforms post successfully
+  (so the brief shows `posted-as-drafts` and you don't double-send).
 - The `live` status transition is manual. The user flips it after they
   publish in GHL.
-- If the webhook fails, do NOT mark Airtable as `posted-as-drafts`. The
-  status only advances when GHL actually has the drafts.
+- If any platform's create-post fails, do NOT mark Airtable as
+  `posted-as-drafts`. Report partial success and let the user re-run.
