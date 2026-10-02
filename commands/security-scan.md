@@ -94,7 +94,7 @@ Files scanned: {count}
 1. **[A03] SQL Injection** in `src/api/users.ts:45`
    - Description: Raw SQL query with string interpolation
    - Fix: Use parameterized queries
-   - Reference: skills/security/owasp-injection.md
+   - Reference: .claude/skills/security/owasp-injection.md
 
 ### High Priority
 2. **[A07] Hardcoded Secret** in `src/config.ts:12`
@@ -159,8 +159,8 @@ After scan completes, offer:
 
 ## Integration
 
-This command uses patterns from:
-- `skills/security/skill.md` - Main security skill
-- `skills/security/owasp-injection.md` - Injection patterns
-- `skills/security/owasp-auth.md` - Auth patterns
-- `skills/security/owasp-access-control.md` - Access control patterns
+Before running Step 2 (Code Security Scan), READ these reference files and apply their detection patterns, manual test payloads, and per-category checks in addition to the grep patterns above:
+- `.claude/skills/security/skill.md` - Main security skill (OWASP Top 10 coverage, output format)
+- `.claude/skills/security/owasp-injection.md` - Injection: SQL, NoSQL, command, XSS, LDAP, path traversal + test payloads
+- `.claude/skills/security/owasp-auth.md` - Auth: password storage, rate limiting, JWT, sessions, OAuth/OIDC
+- `.claude/skills/security/owasp-access-control.md` - Access control: IDOR, RBAC, privilege escalation
