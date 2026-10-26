@@ -10,14 +10,22 @@ publish date is set). The user then polishes inside GHL — line breaks,
 person tags, polls, video preview — and clicks publish.
 
 The GHL Social Planner draft is created **directly via the GoHighLevel
-MCP** (`mcp__ghl__social-media-posting_create-post`). No Make.com webhook
-is involved. This skill validates the brief, lints the captions, shows a
-preview, and on approval calls the GHL MCP once per platform.
+connector** (claude.ai "Go High Level", `https://services.leadconnectorhq.com/mcp/anthropic/v2`).
+No Make.com webhook is involved. This skill validates the brief, lints the
+captions, shows a preview, and on approval creates one draft per caption.
 
-> Prerequisite: the GoHighLevel MCP server must be connected in this
-> session. If `mcp__ghl__*` tools are unavailable, halt and tell the user
-> to enable the GHL MCP. (The MCP is location-scoped to the RGA GHL
-> location; you do not pass a location id.)
+The connector exposes four generic tools rather than one tool per API call:
+`mcp__claude_ai_Go_High_Level__list_locations`, `..._search_operations`,
+`..._describe_operation` and `..._execute_operation`. Every GHL call in this
+skill is `execute_operation` with an `operationId` (`get-account`,
+`create-post`).
+
+> Prerequisite: the Go High Level connector must be connected in this
+> session. If `mcp__claude_ai_Go_High_Level__*` tools are unavailable, halt
+> and tell the user to connect it in claude.ai > Settings > Connectors.
+> The connection can reach MORE THAN ONE location, so **every**
+> `execute_operation` call must pass `locationId` (constant below). Never
+> omit it and never post to another location.
 
 ## Working directory
 
@@ -31,8 +39,11 @@ The skill is the same. Don't worry about which repo.
 
 - Base: `app8WmO2rF14Bfv8O` (RGA Promo Pipeline)
 - Promo Briefs table: `tblrFA4SLyRcbQ965`
-- Posting transport: GoHighLevel MCP (`mcp__ghl__social-media-posting_*`),
-  location-scoped to the RGA GHL location. No env var or webhook needed.
+- Posting transport: Go High Level connector, `execute_operation`
+  (operations `get-account`, `create-post`). No env var or webhook needed.
+- RGA GHL location: `zTPFln9s8sc8hUWqgr4q` ("Revenue Growth Agent"). Pass it
+  as `locationId` on every call. If `list_locations` no longer shows this
+  id, halt and ask.
 
 ## Step 1: Resolve the Brief
 
@@ -148,10 +159,20 @@ If no, stay in chat for further edits to Airtable before re-running.
 
 ### Step 7a: Resolve social accounts (do this BEFORE the Step 6 preview)
 
-Call `mcp__ghl__social-media-posting_get-account` to list the connected
-social accounts for the location. The response contains accounts with an
-`id` (the `accountId`) and a `platform`/`type` (e.g. `linkedin`,
-`instagram`, `facebook`).
+List the connected social accounts (read-only):
+
+```
+mcp__claude_ai_Go_High_Level__execute_operation(
+  operationId = "get-account",
+  locationId  = "zTPFln9s8sc8hUWqgr4q",
+  reason      = "List connected social accounts for the promo post"
+)
+```
+
+Accounts are in `data.results.accounts[]`, each with `id` (the
+`accountId`), `oauthId`, `name`, `platform`, `type`, `active` and
+`isExpired`. Treat an account with `active: false` or `isExpired: true` as
+missing.
 
 ### Standing account selection (RGA default)
 
@@ -165,6 +186,10 @@ and read the current `id` from the response):
 | LinkedIn  | Matt Oess              | profile | `67ddd7fe838e587a959cab49_zTPFln9s8sc8hUWqgr4q_aW9gpZq5aK_profile` |
 | LinkedIn  | Revenue Growth Agent   | page    | `67ddd7fe838e587a959cab49_zTPFln9s8sc8hUWqgr4q_107978108_page` |
 | Instagram | mattoess               | profile | `67ddd7ba031a9629acb54252_zTPFln9s8sc8hUWqgr4q_17841402062630118` |
+
+(As of 2026-10-26 the two LinkedIn targets share oauthId
+`67ddd7fe838e587a959cab49`; mattoess on Instagram has its own oauthId
+`6a5633d9af876f3d7ecc4c24`. Always read current values from `get-account`.)
 
 So **LinkedIn posts to BOTH** the Matt Oess profile and the Revenue
 Growth Agent page; **Instagram posts to mattoess only**. (The LinkedIn
@@ -196,63 +221,79 @@ With the standing RGA selection that means **two** calls:
 1. **LinkedIn** — both the Matt Oess profile and the Revenue Growth Agent
    page (same `LinkedIn Caption` text):
    ```
-   body_accountIds = ["<Matt Oess LinkedIn id>", "<RGA page LinkedIn id>"]
-   body_summary    = "<exact LinkedIn Caption text>"
+   accountIds = ["<Matt Oess LinkedIn id>", "<RGA page LinkedIn id>"]
+   summary    = "<exact LinkedIn Caption text>"
    ```
 2. **Instagram** — mattoess only (`Instagram Caption` text):
    ```
-   body_accountIds = ["<mattoess IG id>"]
-   body_summary    = "<exact Instagram Caption text>"
+   accountIds = ["<mattoess IG id>"]
+   summary    = "<exact Instagram Caption text>"
    ```
 
 Full call shape:
 
 ```
-mcp__ghl__social-media-posting_create-post(
-  body_accountIds = [ ...ids sharing this caption... ],
-  body_type       = "post",
-  body_summary    = "<exact caption text for these accounts>",
-  body_status     = "draft",          // see mode mapping below
-  body_scheduleDate = "<ISO-8601>",   // ONLY when scheduled, else omit
-  body_media      = [{ "url": "<Output MP4 URL>", "type": "video" }],
-  body_userId     = "<oauthId of the posting account>"
+mcp__claude_ai_Go_High_Level__execute_operation(
+  operationId    = "create-post",
+  locationId     = "zTPFln9s8sc8hUWqgr4q",
+  idempotencyKey = "post-promo:<brief record id>:<platform>:<run timestamp>",
+  reason         = "Create <platform> draft for promo brief <brief name>",
+  params = { "body": {
+    "accountIds":   [ ...ids sharing this caption... ],
+    "type":         "post",
+    "summary":      "<exact caption text for these accounts>",
+    "status":       "draft",            // see mode mapping below
+    "scheduleDate": "<ISO-8601>",       // ONLY when scheduled, else omit
+    "media":        [{ "url": "<Output MP4 URL>", "type": "video/mp4" }],
+    "userId":       "<oauthId of the posting account>"
+  }}
 )
 ```
 
-**`body_userId` is REQUIRED** (the MCP schema marks it optional, but the
-API returns HTTP 422 `userId should not be empty` without it). Use the
-**`oauthId`** field from the posting account in the `get-account`
-results; the created post's `createdBy` comes back matching it. The
-LinkedIn Matt Oess profile and the RGA company page share the same
-oauthId (`67ddd7fe838e587a959cab49`, one LinkedIn OAuth connection), so a
-single call covering both LinkedIn targets passes that one oauthId as
-`userId`. If a single call's accountIds span different oauthIds, split
-into one call per oauthId.
+**Dry run first.** Before the Step 6 preview, make the same call with
+`dryRun = true` (no `idempotencyKey`) for each caption group. It shows the
+resolved request (path, location, body) without creating anything. It does
+NOT run GHL's own validation or permission checks (`authorizationVerified:
+false`), so a real call can still fail, which Step 7c handles. If a dry run
+errors or resolves to the wrong location, fix it or halt.
 
-**`body_media`**: each entry needs both `url` and `type` (e.g.
-`"video"`). The URL must be publicly reachable; the rendered promo at the
-brief's `Output MP4 URL` (Vercel Blob public URL) works.
+**`idempotencyKey`** is required for writes. Include the run timestamp so a
+deliberate re-run (after the Step 2 duplicate warning) creates new drafts,
+while a retried call within the same run is not doubled.
+
+**`userId` is REQUIRED** for posts to OAuth channels (HTTP 422 `userId
+should not be empty` without it). Use the **`oauthId`** of the posting
+account from `get-account`. The LinkedIn Matt Oess profile and the RGA
+company page share one oauthId, so a single LinkedIn call passes that one
+value. If a call's accountIds span different oauthIds, split into one call
+per oauthId.
+
+**`media`**: each entry needs `url` and a MIME `type` (`"video/mp4"` for
+the rendered promo; the API rejects a bare `"video"`). The URL must be
+publicly reachable; the brief's `Output MP4 URL` (Vercel Blob public URL)
+works.
 
 Never mix two platforms' captions in one call. LinkedIn and Instagram
 captions differ, so they are always separate calls even though both are
 "post" type.
 
-Field mapping:
-- **`body_summary`**: the platform's exact caption from Airtable
+Field mapping (all inside `params.body`):
+- **`summary`**: the platform's exact caption from Airtable
   (`LinkedIn Caption` or `Instagram Caption`). Do not merge or alter.
-- **`body_status`**:
-  - mode `draft` → `"draft"` (omit `body_scheduleDate`).
-  - mode `scheduled-draft` → `"scheduled"` and set `body_scheduleDate`
+- **`status`**:
+  - mode `draft` → `"draft"` (omit `scheduleDate`).
+  - mode `scheduled-draft` → `"scheduled"` and set `scheduleDate`
     to the ISO-8601 timestamp with timezone from Step 4. (GHL holds it
     as a scheduled post the user can still edit before it fires.)
-- **`body_media`**: a single-element array referencing the rendered
-  video at the brief's `Output MP4 URL`. (GHL fetches the media from the
-  URL; the Vercel Blob / Drive URL must be publicly reachable.)
-- **`body_type`**: `"post"` unless the brief explicitly calls for a
-  `reel` or `story`.
+- **`media`**: a single-element array referencing the rendered video at
+  the brief's `Output MP4 URL`, with `type: "video/mp4"`.
+- **`type`**: `"post"` unless the brief explicitly calls for a `reel` or
+  `story`. A reel needs exactly one video; Instagram stories drop the
+  caption.
 
-Call it once per platform, collecting each response. Each successful
-response returns the created post with an `id` and `status`.
+Call it once per caption group, collecting each response. A successful
+call returns HTTP 201; the created post (with its `id`) is in
+`data.results`.
 
 ### Step 7c: Handle failures
 
@@ -320,6 +361,9 @@ in GHL.)
 ## Important Rules
 
 - NEVER call `create-post` without explicit user approval (Step 6 y/n).
+  A `dryRun: true` call before approval is fine; it creates nothing.
+- ALWAYS pass `locationId: "zTPFln9s8sc8hUWqgr4q"`. The connector can
+  reach other locations (e.g. Cyber Savi Security); never post there.
 - ALWAYS create as a **draft** (or scheduled draft). NEVER post with
   `status: published` from this skill. The user publishes in GHL.
 - NEVER skip the caption lint (Step 5). The whole point of this pipeline
